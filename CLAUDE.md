@@ -1,0 +1,1 @@
+- To test functionality, run `npm run build` but don't run `npm run dev`

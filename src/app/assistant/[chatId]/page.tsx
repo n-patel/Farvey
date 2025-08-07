@@ -28,16 +28,23 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
 import FileManagementDialog from "@/components/file-management-dialog";
+import DocumentSelectionTable from "@/components/document-selection-table";
+import LeaseProvisionsTable from "@/components/lease-provisions-table";
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
-  type?: 'text' | 'artifact';
+  type?: 'text' | 'artifact' | 'document-selection' | 'lease-provisions';
   artifactData?: {
     title: string;
     subtitle: string;
     variant?: 'review' | 'draft'; // Determines which panel to open
   };
+  selectedDocuments?: Array<{
+    id: string;
+    title: string;
+    notes: string;
+  }>;
 };
 
 // Shared animation configuration for consistency - refined timing
@@ -109,6 +116,11 @@ export default function AssistantChatPage({
   const [unifiedArtifactPanelOpen, setUnifiedArtifactPanelOpen] = useState(false);
   const [currentArtifactType, setCurrentArtifactType] = useState<'draft' | 'review' | null>(null);
   const [isFileManagementOpen, setIsFileManagementOpen] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<Array<{
+    id: string;
+    title: string;
+    notes: string;
+  }>>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasProcessedInitialMessageRef = useRef(false);
   
@@ -184,6 +196,12 @@ export default function AssistantChatPage({
       setMessages([{ role: 'user', content: initialMessage, type: 'text' }]);
       setIsLoading(true);
       
+      // Check if initial message contains "files" to trigger document selection
+      const containsFiles = initialMessage.toLowerCase().includes('files');
+      
+      // Check if initial message contains both "follow-up" and "lease" to trigger lease provisions
+      const containsFollowUpAndLease = initialMessage.toLowerCase().includes('follow-up') && initialMessage.toLowerCase().includes('lease');
+      
       // Determine artifact type using weighted keyword scoring
       const artifactType = detectArtifactType(initialMessage);
       const isDraftArtifact = artifactType === 'draft';
@@ -200,7 +218,21 @@ export default function AssistantChatPage({
       
       // Simulate AI response
       setTimeout(() => {
-        if (isDraftArtifact) {
+        if (containsFollowUpAndLease) {
+          // Show lease provisions response for initial message
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'I found several commercial leases with more tenant-friendly early termination provisions. To make your current clause more client-friendly, consider reducing the penalty structure, shortening notice periods, or adding business justification triggers. I\'ve found relevant precedents from WeWork, Spotify, Airbnb, and other tech companies that successfully negotiated these terms.',
+            type: 'lease-provisions'
+          }]);
+        } else if (containsFiles) {
+          // Show document selection table for initial message
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'I found several documents that may be relevant to your query. Please select which sources you\'d like me to use for my analysis.',
+            type: 'document-selection'
+          }]);
+        } else if (isDraftArtifact) {
           setMessages(prev => [...prev, { 
             role: 'assistant', 
             content: 'I have drafted a memo for you. Please let me know if you would like to continue editing the draft or if you need any specific changes or additional information included.',
@@ -505,6 +537,12 @@ export default function AssistantChatPage({
       // Always scroll to bottom when user sends a message
       setTimeout(() => scrollToBottom(), 50);
       
+      // Check if user query contains "files" to trigger document selection
+      const containsFiles = inputValue.toLowerCase().includes('files');
+      
+      // Check if user query contains both "follow-up" and "lease" to trigger lease provisions
+      const containsFollowUpAndLease = inputValue.toLowerCase().includes('follow-up') && inputValue.toLowerCase().includes('lease');
+      
       // Determine artifact type using weighted keyword scoring
       const artifactType = detectArtifactType(inputValue);
       const isDraftArtifact = artifactType === 'draft';
@@ -519,9 +557,23 @@ export default function AssistantChatPage({
         }, 1000); // Open drawer during AI thinking time
       }
       
-      // Simulate AI response with artifact (you can replace this with actual AI integration)
+      // Simulate AI response
       setTimeout(() => {
-        if (isDraftArtifact || isReviewArtifact) {
+        if (containsFollowUpAndLease) {
+          // Show lease provisions response
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'I found several commercial leases with more tenant-friendly early termination provisions. To make your current clause more client-friendly, consider reducing the penalty structure, shortening notice periods, or adding business justification triggers. I\'ve found relevant precedents from WeWork, Spotify, Airbnb, and other tech companies that successfully negotiated these terms.',
+            type: 'lease-provisions'
+          }]);
+        } else if (containsFiles) {
+          // Show document selection table
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'I found several documents that may be relevant to your query. Please select which sources you\'d like me to use for my analysis.',
+            type: 'document-selection'
+          }]);
+        } else if (isDraftArtifact || isReviewArtifact) {
           setMessages(prev => [...prev, { 
             role: 'assistant', 
             content: isDraftArtifact 
@@ -542,7 +594,9 @@ export default function AssistantChatPage({
           // Regular text response if no keywords match
           setMessages(prev => [...prev, { 
             role: 'assistant', 
-            content: 'legal-analysis',
+            content: selectedDocuments.length > 0 
+              ? `Based on the selected documents (${selectedDocuments.map(doc => doc.title).join(', ')}), here is my analysis:\n\n` + 'legal-analysis'
+              : 'legal-analysis',
             type: 'text'
           }]);
         }
@@ -790,7 +844,86 @@ export default function AssistantChatPage({
                   
                   {/* Message Content */}
                   <div className="flex-1 min-w-0">
-                    {message.type === 'artifact' ? (
+                    {message.type === 'lease-provisions' ? (
+                      <div className="space-y-3">
+                        <div className="text-neutral-900 leading-relaxed pl-2">
+                          {message.content}
+                        </div>
+                        <div className="pl-2">
+                          <LeaseProvisionsTable 
+                            onProceed={(selectedProvisions) => {
+                              // Generate the drafting message
+                              const provisionTopics = selectedProvisions.map(provision => provision.topic).join(', ');
+                              const draftingMessage = `Based on the selected approaches (${provisionTopics}), I will draft a revised early termination provision that incorporates these tenant-friendly elements:`;
+                              
+                              // Add the drafting message
+                              setMessages(prev => [...prev, {
+                                role: 'assistant',
+                                content: draftingMessage,
+                                type: 'text'
+                              }]);
+                              
+                              // Simulate AI thinking time and then add draft artifact
+                              setIsLoading(true);
+                              setTimeout(() => {
+                                setMessages(prev => [...prev, {
+                                  role: 'assistant',
+                                  content: 'I have drafted a revised lease provision incorporating your selected tenant-friendly approaches. The new provision balances landlord protection with tenant flexibility based on the precedents you chose.',
+                                  type: 'artifact',
+                                  artifactData: {
+                                    title: 'Revised Early Termination Provision',
+                                    subtitle: 'Version 1',
+                                    variant: 'draft'
+                                  }
+                                }]);
+                                setIsLoading(false);
+                              }, 2000);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : message.type === 'document-selection' ? (
+                      <div className="space-y-3">
+                        <div className="text-neutral-900 leading-relaxed pl-2">
+                          {message.content}
+                        </div>
+                        <div className="pl-2">
+                          <DocumentSelectionTable 
+                            onSelectionChange={(selectedDocs) => {
+                              setSelectedDocuments(selectedDocs);
+                            }}
+                            onProceed={(selectedDocs) => {
+                              // Generate the precedent message
+                              const documentNames = selectedDocs.map(doc => doc.title.replace('.pdf', '')).join(', ');
+                              const precedentMessage = `Using ${documentNames} as precedent, I will begin drafting:`;
+                              
+                              // Add the precedent message
+                              setMessages(prev => [...prev, {
+                                role: 'assistant',
+                                content: precedentMessage,
+                                type: 'text'
+                              }]);
+                              
+                              // Simulate AI thinking time and then add draft artifact
+                              setIsLoading(true);
+                              setTimeout(() => {
+                                setMessages(prev => [...prev, {
+                                  role: 'assistant',
+                                  content: 'I have drafted a document for you based on the selected precedents. Please let me know if you would like to continue editing the draft or if you need any specific changes or additional information included.',
+                                  type: 'artifact',
+                                  artifactData: {
+                                    title: 'Draft Document',
+                                    subtitle: 'Version 1',
+                                    variant: 'draft'
+                                  }
+                                }]);
+                                setIsLoading(false);
+                              }, 2000);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : message.type === 'artifact' ? (
                       <div className="space-y-3">
                         <div className="text-neutral-900 leading-relaxed pl-2">
                           {message.content}
