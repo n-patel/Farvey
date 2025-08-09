@@ -30,11 +30,12 @@ import { Spinner } from "@/components/ui/spinner";
 import FileManagementDialog from "@/components/file-management-dialog";
 import DocumentSelectionTable from "@/components/document-selection-table";
 import LeaseProvisionsTable from "@/components/lease-provisions-table";
+import SubleasingProvisionsTable from "@/components/subleasing-provisions-table";
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
-  type?: 'text' | 'artifact' | 'document-selection' | 'lease-provisions';
+  type?: 'text' | 'artifact' | 'document-selection' | 'lease-provisions' | 'subleasing-provisions';
   artifactData?: {
     title: string;
     subtitle: string;
@@ -199,8 +200,11 @@ export default function AssistantChatPage({
       // Check if initial message contains "files" to trigger document selection
       const containsFiles = initialMessage.toLowerCase().includes('files');
       
-      // Check if initial message contains both "follow-up" and "lease" to trigger lease provisions
-      const containsFollowUpAndLease = initialMessage.toLowerCase().includes('follow-up') && initialMessage.toLowerCase().includes('lease');
+      // Check if initial message contains "early termination" to trigger lease provisions
+      const containsEarlyTermination = initialMessage.toLowerCase().includes('early termination');
+      
+      // Check if initial message contains "subleasing" to trigger subleasing provisions
+      const containsSubleasing = initialMessage.toLowerCase().includes('subleasing');
       
       // Determine artifact type using weighted keyword scoring
       const artifactType = detectArtifactType(initialMessage);
@@ -218,7 +222,14 @@ export default function AssistantChatPage({
       
       // Simulate AI response
       setTimeout(() => {
-        if (containsFollowUpAndLease) {
+        if (containsSubleasing) {
+          // Show subleasing provisions response for initial message
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'I found several commercial lease agreements that handle subleasing rights differently. These precedents show various approaches from requiring full landlord approval to granting broad tenant flexibility. Here are how leading tech companies negotiated their subleasing provisions.',
+            type: 'subleasing-provisions'
+          }]);
+        } else if (containsEarlyTermination) {
           // Show lease provisions response for initial message
           setMessages(prev => [...prev, { 
             role: 'assistant', 
@@ -540,8 +551,11 @@ export default function AssistantChatPage({
       // Check if user query contains "files" to trigger document selection
       const containsFiles = inputValue.toLowerCase().includes('files');
       
-      // Check if user query contains both "follow-up" and "lease" to trigger lease provisions
-      const containsFollowUpAndLease = inputValue.toLowerCase().includes('follow-up') && inputValue.toLowerCase().includes('lease');
+      // Check if user query contains "early termination" to trigger lease provisions
+      const containsEarlyTermination = inputValue.toLowerCase().includes('early termination');
+      
+      // Check if user query contains "subleasing" to trigger subleasing provisions
+      const containsSubleasing = inputValue.toLowerCase().includes('subleasing');
       
       // Determine artifact type using weighted keyword scoring
       const artifactType = detectArtifactType(inputValue);
@@ -559,7 +573,14 @@ export default function AssistantChatPage({
       
       // Simulate AI response
       setTimeout(() => {
-        if (containsFollowUpAndLease) {
+        if (containsSubleasing) {
+          // Show subleasing provisions response
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'I found several commercial lease agreements that handle subleasing rights differently. These precedents show various approaches from requiring full landlord approval to granting broad tenant flexibility. Here are how leading tech companies negotiated their subleasing provisions.',
+            type: 'subleasing-provisions'
+          }]);
+        } else if (containsEarlyTermination) {
           // Show lease provisions response
           setMessages(prev => [...prev, { 
             role: 'assistant', 
@@ -844,7 +865,45 @@ export default function AssistantChatPage({
                   
                   {/* Message Content */}
                   <div className="flex-1 min-w-0">
-                    {message.type === 'lease-provisions' ? (
+                    {message.type === 'subleasing-provisions' ? (
+                      <div className="space-y-3">
+                        <div className="text-neutral-900 leading-relaxed pl-2">
+                          {message.content}
+                        </div>
+                        <div className="pl-2">
+                          <SubleasingProvisionsTable 
+                            onProceed={(selectedProvisions) => {
+                              // Generate the drafting message
+                              const agreementNames = selectedProvisions.map(provision => provision.agreement.replace('.pdf', '')).join(', ');
+                              const draftingMessage = `Based on the selected approaches from ${agreementNames}, I will draft a subleasing provision that incorporates these negotiation strategies:`;
+                              
+                              // Add the drafting message
+                              setMessages(prev => [...prev, {
+                                role: 'assistant',
+                                content: draftingMessage,
+                                type: 'text'
+                              }]);
+                              
+                              // Simulate AI thinking time and then add draft artifact
+                              setIsLoading(true);
+                              setTimeout(() => {
+                                setMessages(prev => [...prev, {
+                                  role: 'assistant',
+                                  content: 'I have drafted a subleasing provision incorporating the selected approaches from leading tech companies. The provision balances tenant flexibility with landlord protection based on the precedents you chose.',
+                                  type: 'artifact',
+                                  artifactData: {
+                                    title: 'Subleasing Provision',
+                                    subtitle: 'Version 1',
+                                    variant: 'draft'
+                                  }
+                                }]);
+                                setIsLoading(false);
+                              }, 2000);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : message.type === 'lease-provisions' ? (
                       <div className="space-y-3">
                         <div className="text-neutral-900 leading-relaxed pl-2">
                           {message.content}
