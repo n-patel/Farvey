@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 
-import { Plus, FileText, Table2, Settings2, ListPlus, Wand, Orbit, Search, ChevronDown, X } from "lucide-react";
+import { Plus, FileText, Table2, Settings2, ListPlus, Wand, Orbit, Search, X, Upload, Globe, Folder, Flag } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 export default function AssistantHomePage() {
@@ -221,14 +222,52 @@ export default function AssistantHomePage() {
                   {/* Left Controls */}
                   <div className="flex items-center">
                     {/* Files and sources */}
-                    <button 
-                      onClick={() => setIsFileManagementOpen(true)}
-                      className="flex items-center gap-1.5 h-8 px-2 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200 transition-colors" 
-                      style={{ borderRadius: '6px' }}
-                    >
-                      <Plus size={16} />
-                      <span className="text-sm font-normal">Files and sources</span>
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="flex items-center gap-1.5 h-8 px-2 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200 transition-colors" style={{ borderRadius: '6px' }}>
+                          <Plus size={16} />
+                          <span className="text-sm font-normal">Files and sources</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-[240px]">
+                        <DropdownMenuItem onClick={() => setIsFileManagementOpen(true)}>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload files
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
+                          Add from SharePoint
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
+                          Add from iManage
+                        </DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Folder className="mr-2 h-4 w-4" />
+                            Add from Vault project
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem>Commercial contracts</DropdownMenuItem>
+                            <DropdownMenuItem>Clinton emails</DropdownMenuItem>
+                            <DropdownMenuItem>Post office witnesses</DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Globe className="mr-2 h-4 w-4" />
+                          Web search
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Image src="/EDGAR.svg" width={16} height={16} className="mr-2" alt="" />
+                          EDGAR
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Flag className="mr-2 h-4 w-4" />
+                          EUR-Lex
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     
                     {/* Prompts */}
                     <button className="flex items-center gap-1.5 h-8 px-2 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200 transition-colors" style={{ borderRadius: '6px' }}>
