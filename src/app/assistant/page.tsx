@@ -20,17 +20,25 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
 export default function AssistantHomePage() {
   const router = useRouter();
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDeepResearchActive, setIsDeepResearchActive] = useState(false);
-  const [selectedSources, setSelectedSources] = useState<string[]>(['Web']);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [selectedVaultProject, setSelectedVaultProject] = useState<string | null>(null);
   const [activeWorkflowTab, setActiveWorkflowTab] = useState("recommended");
   const [workflowSearchQuery, setWorkflowSearchQuery] = useState("");
   const [isFileManagementOpen, setIsFileManagementOpen] = useState(false);
+  const [isConfirmationPopoverOpen, setIsConfirmationPopoverOpen] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
 
   const handleSendMessage = () => {
     if (inputValue.trim() && !isLoading) {
@@ -49,6 +57,108 @@ export default function AssistantHomePage() {
       // Navigate to the chat page with the message as a query parameter
       router.push(`/assistant/${chatId}?initialMessage=${encodeURIComponent(inputValue)}`);
     }
+  };
+
+  const getIncompatibleSources = (willBeDeepResearch: boolean) => {
+    return selectedSources.filter(source => {
+      // The source is already the sourceId, so just check directly
+      if (dropdownItemsInfo[source]) {
+        const sourceInfo = dropdownItemsInfo[source];
+        return willBeDeepResearch ? !sourceInfo.isCompatibleWithDR : !sourceInfo.isCompatibleWithoutDR;
+      }
+      return false; // Keep sources we can't identify
+    });
+  };
+
+  const handleSourceSelection = (sourceName: string, sourceId: string) => {
+    const sourceKey = sourceId || sourceName;
+    
+    if (isDeepResearchActive) {
+      // Deep Research mode: Allow multiple compatible sources
+      const sourceInfo = dropdownItemsInfo[sourceId];
+      if (sourceInfo && !sourceInfo.isCompatibleWithDR) {
+        return; // Don't add incompatible sources
+      }
+      
+      if (selectedSources.includes(sourceKey)) {
+        setSelectedSources(selectedSources.filter(s => s !== sourceKey));
+      } else {
+        setSelectedSources([...selectedSources, sourceKey]);
+      }
+    } else {
+      // Non-Deep Research mode: Only allow one source at a time
+      const sourceInfo = dropdownItemsInfo[sourceId];
+      if (sourceInfo && !sourceInfo.isCompatibleWithoutDR) {
+        return; // Don't add incompatible sources
+      }
+      
+      if (selectedSources.includes(sourceKey)) {
+        setSelectedSources([]);
+      } else {
+        setSelectedSources([sourceKey]);
+      }
+    }
+  };
+
+  const handleDeepResearchToggle = () => {
+    const newDRState = !isDeepResearchActive;
+    console.log('DEBUG handleDeepResearchToggle: isDeepResearchActive =', isDeepResearchActive);
+    console.log('DEBUG handleDeepResearchToggle: newDRState =', newDRState);
+    console.log('DEBUG handleDeepResearchToggle: selectedSources =', selectedSources);
+    
+    const incompatibleSources = getIncompatibleSources(newDRState);
+    console.log('DEBUG handleDeepResearchToggle: incompatibleSources =', incompatibleSources);
+    
+    if (incompatibleSources.length > 0) {
+      // Show confirmation popover - convert source IDs to display names
+      const sourceDisplayNames = incompatibleSources.map(sourceId => {
+        if (dropdownItemsInfo[sourceId]) {
+          return dropdownItemsInfo[sourceId].title;
+        }
+        return sourceId; // fallback to ID if no title found
+      });
+      
+      const sourceList = sourceDisplayNames.join(', ');
+      const message = newDRState 
+        ? `${sourceList} ${incompatibleSources.length === 1 ? 'is' : 'are'} incompatible with Deep Research. Would you like to remove ${incompatibleSources.length === 1 ? 'it' : 'them'} in order to enable Deep Research?`
+        : `${sourceList} ${incompatibleSources.length === 1 ? 'is' : 'are'} only available in Deep Research. Would you like to remove ${incompatibleSources.length === 1 ? 'it' : 'them'} in order to disable Deep Research?`;
+      
+      setConfirmationMessage(message);
+      setIsConfirmationPopoverOpen(true);
+      return;
+    }
+    
+    // No incompatibilities, proceed with toggle
+    setIsDeepResearchActive(newDRState);
+  };
+
+  const handleConfirmToggle = () => {
+    const newDRState = !isDeepResearchActive;
+    
+    console.log('DEBUG handleConfirmToggle: selectedSources before =', selectedSources);
+    console.log('DEBUG handleConfirmToggle: newDRState =', newDRState);
+    
+    // Remove incompatible sources first
+    const compatibleSources = selectedSources.filter(source => {
+      if (dropdownItemsInfo[source]) {
+        const sourceInfo = dropdownItemsInfo[source];
+        const isCompatible = newDRState ? sourceInfo.isCompatibleWithDR : sourceInfo.isCompatibleWithoutDR;
+        console.log(`DEBUG handleConfirmToggle: ${source} - isCompatibleWithDR: ${sourceInfo.isCompatibleWithDR}, isCompatibleWithoutDR: ${sourceInfo.isCompatibleWithoutDR}, newDRState: ${newDRState}, keeping: ${isCompatible}`);
+        return isCompatible;
+      }
+      return true; // Keep sources we can't identify
+    });
+    
+    console.log('DEBUG handleConfirmToggle: selectedSources after =', compatibleSources);
+    
+    // Update both states together
+    setSelectedSources(compatibleSources);
+    setIsDeepResearchActive(newDRState);
+    setIsConfirmationPopoverOpen(false);
+  };
+
+  const handleCancelToggle = () => {
+    setIsConfirmationPopoverOpen(false);
   };
 
   // Streaming icon component
@@ -166,8 +276,8 @@ export default function AssistantHomePage() {
                 {/* Chat Input - Identical to chat page */}
                 <div className="pl-2 pr-3 pt-4 pb-3 transition-all duration-200 border border-transparent focus-within:border-neutral-300 bg-neutral-100 flex flex-col" style={{ borderRadius: '12px', minHeight: '160px' }}>
                 
-                {/* Source Chips - Show when Deep Research is active */}
-                {isDeepResearchActive && selectedSources.length > 0 && (
+                {/* Source Chips - Show when any sources are selected */}
+                {selectedSources.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-2">
                     {selectedSources.map((source) => (
                       <div
@@ -181,9 +291,6 @@ export default function AssistantHomePage() {
                             setSelectedSources(newSources);
                             if (source.startsWith('Vault:')) {
                               setSelectedVaultProject(null);
-                            }
-                            if (newSources.length === 0) {
-                              setIsDeepResearchActive(false);
                             }
                           }}
                           className="ml-1 hover:bg-[#5F3BA5] hover:text-white rounded-full p-0.5 transition-colors"
@@ -227,12 +334,20 @@ export default function AssistantHomePage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-[240px]">
+                        {isDeepResearchActive && (
+                          <div className="px-2 py-1.5 text-xs text-neutral-500 border-b border-neutral-200 mb-1">
+                            Deep Research is enabled. You may select multiple supported sources.
+                          </div>
+                        )}
                         <InfoPopover 
                           title={dropdownItemsInfo['upload-files'].title}
                           description={dropdownItemsInfo['upload-files'].description}
                           isIncompatible={false}
                         >
-                          <DropdownMenuItem onClick={() => setIsFileManagementOpen(true)} className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => {
+                            handleSourceSelection('Files', 'upload-files');
+                            setIsFileManagementOpen(true);
+                          }} className="cursor-pointer">
                             <Upload className="mr-2 h-4 w-4" />
                             Upload files
                           </DropdownMenuItem>
@@ -242,7 +357,7 @@ export default function AssistantHomePage() {
                           description={dropdownItemsInfo['sharepoint'].description}
                           isIncompatible={false}
                         >
-                          <DropdownMenuItem className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => handleSourceSelection('SharePoint files', 'sharepoint')} className="cursor-pointer">
                             <Monitor className="mr-2 h-4 w-4" />
                             Upload from SharePoint
                           </DropdownMenuItem>
@@ -252,7 +367,7 @@ export default function AssistantHomePage() {
                           description={dropdownItemsInfo['imanage'].description}
                           isIncompatible={false}
                         >
-                          <DropdownMenuItem className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => handleSourceSelection('iManage files', 'imanage')} className="cursor-pointer">
                             <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
                             Upload from iManage
                           </DropdownMenuItem>
@@ -263,7 +378,7 @@ export default function AssistantHomePage() {
                           isIncompatible={!dropdownItemsInfo['imanage-deep-research'].isCompatibleWithoutDR && !isDeepResearchActive}
                           incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['imanage-deep-research'])}
                         >
-                          <DropdownMenuItem disabled={!isDeepResearchActive} className={!isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                          <DropdownMenuItem onClick={() => handleSourceSelection('Search across iManage', 'imanage-deep-research')} disabled={!isDeepResearchActive} className={!isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
                             Search across iManage
                           </DropdownMenuItem>
@@ -273,7 +388,7 @@ export default function AssistantHomePage() {
                           description={dropdownItemsInfo['vault'].description}
                           isIncompatible={false}
                         >
-                          <DropdownMenuItem className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => handleSourceSelection('Vault files', 'vault')} className="cursor-pointer">
                             <Folder className="mr-2 h-4 w-4" />
                             Add from Vault project
                           </DropdownMenuItem>
@@ -284,7 +399,7 @@ export default function AssistantHomePage() {
                           description={dropdownItemsInfo['web-search'].description}
                           isIncompatible={false}
                         >
-                          <DropdownMenuItem className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => handleSourceSelection('Web search', 'web-search')} className="cursor-pointer">
                             <Globe className="mr-2 h-4 w-4" />
                             Web search
                           </DropdownMenuItem>
@@ -295,7 +410,7 @@ export default function AssistantHomePage() {
                           isIncompatible={!dropdownItemsInfo['edgar'].isCompatibleWithDR && isDeepResearchActive}
                           incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['edgar'])}
                         >
-                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                          <DropdownMenuItem onClick={() => handleSourceSelection('EDGAR', 'edgar')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Image src="/EDGAR.svg" width={16} height={16} className="mr-2" alt="" />
                             EDGAR
                           </DropdownMenuItem>
@@ -306,7 +421,7 @@ export default function AssistantHomePage() {
                           isIncompatible={!dropdownItemsInfo['eur-lex'].isCompatibleWithDR && isDeepResearchActive}
                           incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['eur-lex'])}
                         >
-                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                          <DropdownMenuItem onClick={() => handleSourceSelection('EUR-Lex', 'eur-lex')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Image src="/globe.svg" width={16} height={16} className="mr-2" alt="" />
                             EUR-Lex
                           </DropdownMenuItem>
@@ -317,7 +432,7 @@ export default function AssistantHomePage() {
                           isIncompatible={!dropdownItemsInfo['sweden'].isCompatibleWithDR && isDeepResearchActive}
                           incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['sweden'])}
                         >
-                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                          <DropdownMenuItem onClick={() => handleSourceSelection('Sweden', 'sweden')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <span className="mr-2">🇸🇪</span>
                             Sweden
                           </DropdownMenuItem>
@@ -328,7 +443,7 @@ export default function AssistantHomePage() {
                           isIncompatible={!dropdownItemsInfo['singapore'].isCompatibleWithDR && isDeepResearchActive}
                           incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['singapore'])}
                         >
-                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                          <DropdownMenuItem onClick={() => handleSourceSelection('Singapore', 'singapore')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <span className="mr-2">🇸🇬</span>
                             Singapore
                           </DropdownMenuItem>
@@ -339,7 +454,7 @@ export default function AssistantHomePage() {
                           isIncompatible={!dropdownItemsInfo['lexisnexis'].isCompatibleWithDR && isDeepResearchActive}
                           incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['lexisnexis'])}
                         >
-                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                          <DropdownMenuItem onClick={() => handleSourceSelection('LexisNexis', 'lexisnexis')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Image src="/lexis.svg" width={16} height={16} className="mr-2" alt="" />
                             LexisNexis
                           </DropdownMenuItem>
@@ -371,19 +486,45 @@ export default function AssistantHomePage() {
                   
                   {/* Right Controls */}
                   <div className="flex items-center space-x-1">
-                    {/* Deep Research */}
-                    <button 
-                      onClick={() => setIsDeepResearchActive(!isDeepResearchActive)}
-                      className={`flex items-center gap-1.5 h-8 px-2 transition-colors ${
-                        isDeepResearchActive 
-                          ? 'text-[#5F3BA5] bg-[#E7E6EA]' 
-                          : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200'
-                      }`}
-                      style={{ borderRadius: '6px' }}
-                    >
-                      <Orbit size={16} />
-                      <span className="text-sm font-normal">Deep Research</span>
-                    </button>
+                    {/* Deep Research with Confirmation Popover */}
+                    <Popover open={isConfirmationPopoverOpen} onOpenChange={setIsConfirmationPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <button 
+                          onClick={handleDeepResearchToggle}
+                          className={`flex items-center gap-1.5 h-8 px-2 transition-colors ${
+                            isDeepResearchActive 
+                              ? 'text-[#5F3BA5] bg-[#E7E6EA]' 
+                              : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200'
+                          }`}
+                          style={{ borderRadius: '6px' }}
+                        >
+                          <Orbit size={16} />
+                          <span className="text-sm font-normal">Deep Research</span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-4" align="end">
+                        <div className="space-y-3">
+                          <p className="text-sm text-neutral-900">{confirmationMessage}</p>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="small"
+                              onClick={handleCancelToggle}
+                              className="text-xs"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={handleConfirmToggle}
+                              className="text-xs bg-neutral-900 hover:bg-neutral-800 text-white"
+                            >
+                              Remove & Continue
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     
                     {/* Ask Harvey Button */}
                     <button
@@ -418,7 +559,7 @@ export default function AssistantHomePage() {
               {/* Action Cards Section - Below Chatbox */}
               <div className="mt-4">
                 <div className="flex gap-3 justify-center flex-wrap mx-auto" style={{ maxWidth: '740px' }}>
-                  <button className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
+                  <button onClick={() => handleSourceSelection('Search across iManage', 'imanage-deep-research')} className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
                     <div className="p-1.5 bg-neutral-100 rounded-sm">
                       <Image src="/imanage.svg" alt="" width={16} height={16} style={{ width: '16px', height: '16px' }} />
                     </div>
@@ -426,7 +567,7 @@ export default function AssistantHomePage() {
                     <Plus size={16} className="text-neutral-600" />
                   </button>
                   
-                  <button className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
+                  <button onClick={() => handleSourceSelection('LexisNexis', 'lexisnexis')} className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
                     <div className="p-1.5 bg-neutral-100 rounded-sm">
                       <Image src="/lexis.svg" alt="" width={16} height={16} style={{ width: '16px', height: '16px' }} />
                     </div>
@@ -434,7 +575,7 @@ export default function AssistantHomePage() {
                     <Plus size={16} className="text-neutral-600" />
                   </button>
                   
-                  <button className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
+                  <button onClick={() => handleSourceSelection('Web search', 'web-search')} className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
                     <div className="p-1.5 bg-neutral-100 rounded-sm">
                       <Image src="/globe.svg" alt="" width={16} height={16} style={{ width: '16px', height: '16px' }} />
                     </div>
@@ -442,7 +583,7 @@ export default function AssistantHomePage() {
                     <Plus size={16} className="text-neutral-600" />
                   </button>
                   
-                  <button className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
+                  <button onClick={() => handleSourceSelection('EDGAR', 'edgar')} className="py-1 pl-1 pr-3 bg-white border border-neutral-200 rounded-md hover:border-neutral-300 transition-colors flex items-center gap-2">
                     <div className="p-1.5 bg-neutral-100 rounded-sm">
                       <Image src="/EDGAR.svg" alt="" width={16} height={16} style={{ width: '16px', height: '16px' }} />
                     </div>
