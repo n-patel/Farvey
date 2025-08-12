@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 
-import { Plus, FileText, Table2, Settings2, ListPlus, Wand, Orbit, Search, X, Upload, Globe, Folder, Monitor } from "lucide-react";
+import { Plus, FileText, Table2, Settings2, ListPlus, Wand, Orbit, Search, Upload, Globe, Folder, Monitor } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import FileManagementDialog from "@/components/file-management-dialog"
 import Image from "next/image";
 import { InfoPopover } from "@/components/info-popover";
 import { dropdownItemsInfo, getIncompatibilityMessage } from "@/lib/dropdown-content";
+import SourceChip from "@/components/source-chip";
+import FileChip from "@/components/file-chip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +35,9 @@ export default function AssistantHomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDeepResearchActive, setIsDeepResearchActive] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [sourceIds, setSourceIds] = useState<Record<string, string>>({});
   const [selectedVaultProject, setSelectedVaultProject] = useState<string | null>(null);
+  const [fileChips, setFileChips] = useState<{ name: string; type: 'browser' | 'sharepoint' | 'imanage' }[]>([]);
   const [activeWorkflowTab, setActiveWorkflowTab] = useState("recommended");
   const [workflowSearchQuery, setWorkflowSearchQuery] = useState("");
   const [isFileManagementOpen, setIsFileManagementOpen] = useState(false);
@@ -73,6 +77,31 @@ export default function AssistantHomePage() {
   const handleSourceSelection = (sourceName: string, sourceId: string) => {
     const sourceKey = sourceId || sourceName;
     
+    // Handle file upload sources by adding dummy chips
+    if (['sharepoint', 'imanage'].includes(sourceId)) {
+      const fileType = sourceId === 'sharepoint' ? 'sharepoint' : 'imanage';
+      const fileName = `example_document.pdf`;
+      
+      // Add a dummy file chip
+      setFileChips(prev => {
+        const exists = prev.some(chip => chip.type === fileType);
+        if (exists) return prev;
+        return [...prev, { name: fileName, type: fileType }];
+      });
+      return; // Don't add to regular sources
+    }
+    
+    // Handle regular file upload
+    if (sourceId === 'upload-files') {
+      const fileName = `uploaded_file.pdf`;
+      setFileChips(prev => {
+        const exists = prev.some(chip => chip.type === 'browser');
+        if (exists) return prev;
+        return [...prev, { name: fileName, type: 'browser' }];
+      });
+      return; // Don't add to regular sources
+    }
+    
     if (isDeepResearchActive) {
       // Deep Research mode: Allow multiple compatible sources
       const sourceInfo = dropdownItemsInfo[sourceId];
@@ -82,8 +111,14 @@ export default function AssistantHomePage() {
       
       if (selectedSources.includes(sourceKey)) {
         setSelectedSources(selectedSources.filter(s => s !== sourceKey));
+        setSourceIds(prev => {
+          const newIds = { ...prev };
+          delete newIds[sourceKey];
+          return newIds;
+        });
       } else {
         setSelectedSources([...selectedSources, sourceKey]);
+        setSourceIds(prev => ({ ...prev, [sourceKey]: sourceId }));
       }
     } else {
       // Non-Deep Research mode: Only allow one source at a time
@@ -94,8 +129,10 @@ export default function AssistantHomePage() {
       
       if (selectedSources.includes(sourceKey)) {
         setSelectedSources([]);
+        setSourceIds({});
       } else {
         setSelectedSources([sourceKey]);
+        setSourceIds({ [sourceKey]: sourceId });
       }
     }
   };
@@ -276,28 +313,37 @@ export default function AssistantHomePage() {
                 {/* Chat Input - Identical to chat page */}
                 <div className="pl-2 pr-3 pt-4 pb-3 transition-all duration-200 border border-transparent focus-within:border-neutral-300 bg-neutral-100 flex flex-col" style={{ borderRadius: '12px', minHeight: '160px' }}>
                 
-                {/* Source Chips - Show when any sources are selected */}
-                {selectedSources.length > 0 && (
+                {/* Source and File Chips - Show when any sources are selected or files uploaded */}
+                {(selectedSources.length > 0 || fileChips.length > 0) && (
                   <div className="mb-3 flex flex-wrap gap-2">
                     {selectedSources.map((source) => (
-                      <div
+                      <SourceChip
                         key={source}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-white text-[#5F3BA5] rounded-full text-sm font-medium border border-[#E7E6EA]"
-                      >
-                        <span>{source}</span>
-                        <button
-                          onClick={() => {
-                            const newSources = selectedSources.filter(s => s !== source);
-                            setSelectedSources(newSources);
-                            if (source.startsWith('Vault:')) {
-                              setSelectedVaultProject(null);
-                            }
-                          }}
-                          className="ml-1 hover:bg-[#5F3BA5] hover:text-white rounded-full p-0.5 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
+                        source={source}
+                        sourceId={sourceIds[source] || source}
+                        onRemove={(sourceToRemove) => {
+                          const newSources = selectedSources.filter(s => s !== sourceToRemove);
+                          setSelectedSources(newSources);
+                          setSourceIds(prev => {
+                            const newIds = { ...prev };
+                            delete newIds[sourceToRemove];
+                            return newIds;
+                          });
+                          if (sourceToRemove.startsWith('Vault:')) {
+                            setSelectedVaultProject(null);
+                          }
+                        }}
+                      />
+                    ))}
+                    {fileChips.map((fileChip, index) => (
+                      <FileChip
+                        key={`${fileChip.type}-${index}`}
+                        fileName={fileChip.name}
+                        fileType={fileChip.type}
+                        onRemove={() => {
+                          setFileChips(prev => prev.filter((_, i) => i !== index));
+                        }}
+                      />
                     ))}
                   </div>
                 )}
@@ -346,7 +392,6 @@ export default function AssistantHomePage() {
                         >
                           <DropdownMenuItem onClick={() => {
                             handleSourceSelection('Files', 'upload-files');
-                            setIsFileManagementOpen(true);
                           }} className="cursor-pointer">
                             <Upload className="mr-2 h-4 w-4" />
                             Upload files

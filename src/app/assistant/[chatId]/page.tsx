@@ -32,6 +32,7 @@ import FileManagementDialog from "@/components/file-management-dialog";
 import DocumentSelectionTable from "@/components/document-selection-table";
 import { InfoPopover } from "@/components/info-popover";
 import { dropdownItemsInfo, getIncompatibilityMessage } from "@/lib/dropdown-content";
+import SourceChip from "@/components/source-chip";
 import LeaseProvisionsTable from "@/components/lease-provisions-table";
 import SubleasingProvisionsTable from "@/components/subleasing-provisions-table";
 
@@ -103,6 +104,7 @@ export default function AssistantChatPage({
   const [chatOpen, setChatOpen] = useState(true);
   const [isDeepResearchActive, setIsDeepResearchActive] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>(['Web']);
+  const [sourceIds, setSourceIds] = useState<Record<string, string>>({ 'Web': 'web-search' });
   const [selectedVaultProject, setSelectedVaultProject] = useState<string | null>(null);
   const [chatWidth, setChatWidth] = useState(401);
   const [isResizing, setIsResizing] = useState(false);
@@ -1189,27 +1191,26 @@ export default function AssistantChatPage({
                 {isDeepResearchActive && selectedSources.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-2">
                     {selectedSources.map((source) => (
-                      <div
+                      <SourceChip
                         key={source}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-white text-[#5F3BA5] rounded-full text-sm font-medium border border-[#E7E6EA]"
-                      >
-                        <span>{source}</span>
-                        <button
-                          onClick={() => {
-                            const newSources = selectedSources.filter(s => s !== source);
-                            setSelectedSources(newSources);
-                            if (source.startsWith('Vault:')) {
-                              setSelectedVaultProject(null);
-                            }
-                            if (newSources.length === 0) {
-                              setIsDeepResearchActive(false);
-                            }
-                          }}
-                          className="ml-1 hover:bg-[#5F3BA5] hover:text-white rounded-full p-0.5 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
+                        source={source}
+                        sourceId={sourceIds[source] || source}
+                        onRemove={(sourceToRemove) => {
+                          const newSources = selectedSources.filter(s => s !== sourceToRemove);
+                          setSelectedSources(newSources);
+                          setSourceIds(prev => {
+                            const newIds = { ...prev };
+                            delete newIds[sourceToRemove];
+                            return newIds;
+                          });
+                          if (sourceToRemove.startsWith('Vault:')) {
+                            setSelectedVaultProject(null);
+                          }
+                          if (newSources.length === 0) {
+                            setIsDeepResearchActive(false);
+                          }
+                        }}
+                      />
                     ))}
                   </div>
                 )}
