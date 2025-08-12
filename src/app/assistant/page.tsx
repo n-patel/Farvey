@@ -4,22 +4,19 @@ import { useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 
-import { Plus, FileText, Table2, Settings2, ListPlus, Wand, Orbit, Search, X, Upload, Globe, Folder, Flag } from "lucide-react";
+import { Plus, FileText, Table2, Settings2, ListPlus, Wand, Orbit, Search, X, Upload, Globe, Folder, Monitor } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { AnimatedBackground } from "../../../components/motion-primitives/animated-background";
 import FileManagementDialog from "@/components/file-management-dialog"
 import Image from "next/image";
+import { InfoPopover } from "@/components/info-popover";
+import { dropdownItemsInfo, getIncompatibilityMessage } from "@/lib/dropdown-content";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -230,42 +227,123 @@ export default function AssistantHomePage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-[240px]">
-                        <DropdownMenuItem onClick={() => setIsFileManagementOpen(true)}>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload files
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
-                          Add from SharePoint
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
-                          Add from iManage
-                        </DropdownMenuItem>
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['upload-files'].title}
+                          description={dropdownItemsInfo['upload-files'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem onClick={() => setIsFileManagementOpen(true)} className="cursor-pointer">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload files
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['sharepoint'].title}
+                          description={dropdownItemsInfo['sharepoint'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Monitor className="mr-2 h-4 w-4" />
+                            Upload from SharePoint
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['imanage'].title}
+                          description={dropdownItemsInfo['imanage'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
+                            Upload from iManage
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['imanage-deep-research'].title}
+                          description={dropdownItemsInfo['imanage-deep-research'].description}
+                          isIncompatible={!dropdownItemsInfo['imanage-deep-research'].isCompatibleWithoutDR && !isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['imanage-deep-research'])}
+                        >
+                          <DropdownMenuItem disabled={!isDeepResearchActive} className={!isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
+                            Search across iManage
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['vault'].title}
+                          description={dropdownItemsInfo['vault'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
                             <Folder className="mr-2 h-4 w-4" />
                             Add from Vault project
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuItem>Commercial contracts</DropdownMenuItem>
-                            <DropdownMenuItem>Clinton emails</DropdownMenuItem>
-                            <DropdownMenuItem>Post office witnesses</DropdownMenuItem>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
+                          </DropdownMenuItem>
+                        </InfoPopover>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Globe className="mr-2 h-4 w-4" />
-                          Web search
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Image src="/EDGAR.svg" width={16} height={16} className="mr-2" alt="" />
-                          EDGAR
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Flag className="mr-2 h-4 w-4" />
-                          EUR-Lex
-                        </DropdownMenuItem>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['web-search'].title}
+                          description={dropdownItemsInfo['web-search'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Globe className="mr-2 h-4 w-4" />
+                            Web search
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['edgar'].title}
+                          description={dropdownItemsInfo['edgar'].description}
+                          isIncompatible={!dropdownItemsInfo['edgar'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['edgar'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/EDGAR.svg" width={16} height={16} className="mr-2" alt="" />
+                            EDGAR
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['eur-lex'].title}
+                          description={dropdownItemsInfo['eur-lex'].description}
+                          isIncompatible={!dropdownItemsInfo['eur-lex'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['eur-lex'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/globe.svg" width={16} height={16} className="mr-2" alt="" />
+                            EUR-Lex
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['sweden'].title}
+                          description={dropdownItemsInfo['sweden'].description}
+                          isIncompatible={!dropdownItemsInfo['sweden'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['sweden'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <span className="mr-2">🇸🇪</span>
+                            Sweden
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['singapore'].title}
+                          description={dropdownItemsInfo['singapore'].description}
+                          isIncompatible={!dropdownItemsInfo['singapore'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['singapore'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <span className="mr-2">🇸🇬</span>
+                            Singapore
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['lexisnexis'].title}
+                          description={dropdownItemsInfo['lexisnexis'].description}
+                          isIncompatible={!dropdownItemsInfo['lexisnexis'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['lexisnexis'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/lexis.svg" width={16} height={16} className="mr-2" alt="" />
+                            LexisNexis
+                          </DropdownMenuItem>
+                        </InfoPopover>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     
@@ -294,112 +372,18 @@ export default function AssistantHomePage() {
                   {/* Right Controls */}
                   <div className="flex items-center space-x-1">
                     {/* Deep Research */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button 
-                          className={`flex items-center gap-1.5 h-8 px-2 transition-colors ${
-                            isDeepResearchActive 
-                              ? 'text-[#5F3BA5] bg-[#E7E6EA]' 
-                              : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200'
-                          }`}
-                          style={{ borderRadius: '6px' }}
-                        >
-                          <Orbit size={16} />
-                          <span className="text-sm font-normal">Deep Research</span>
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel className="text-neutral-500 font-normal text-xs px-2 py-1.5">
-                          Select one or more sources to include
-                        </DropdownMenuLabel>
-                        <DropdownMenuCheckboxItem
-                          checked={selectedSources.includes('Web')}
-                          onSelect={(e) => e.preventDefault()}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedSources(prev => [...prev, 'Web']);
-                              setIsDeepResearchActive(true);
-                            } else {
-                              const newSources = selectedSources.filter(s => s !== 'Web');
-                              setSelectedSources(newSources);
-                              if (newSources.length === 0) {
-                                setIsDeepResearchActive(false);
-                              }
-                            }
-                          }}
-                        >
-                          Web
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                          checked={selectedSources.includes('iManage')}
-                          onSelect={(e) => e.preventDefault()}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedSources(prev => [...prev, 'iManage']);
-                              setIsDeepResearchActive(true);
-                            } else {
-                              const newSources = selectedSources.filter(s => s !== 'iManage');
-                              setSelectedSources(newSources);
-                              if (newSources.length === 0) {
-                                setIsDeepResearchActive(false);
-                              }
-                            }
-                          }}
-                        >
-                          iManage
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger className={`relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 ${selectedVaultProject ? 'focus:bg-accent focus:text-accent-foreground' : 'focus:bg-accent focus:text-accent-foreground'}`}>
-                            <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
-                              {selectedVaultProject && (
-                                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M9 12l2 2 4-4"/>
-                                </svg>
-                              )}
-                            </span>
-                            {selectedVaultProject || 'Select Vault project'}
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                setSelectedVaultProject('Commercial contracts');
-                                setSelectedSources(prev => {
-                                  const filtered = prev.filter(s => !s.startsWith('Vault:') && s !== 'Vault');
-                                  return [...filtered, 'Vault: Commercial contracts'];
-                                });
-                                setIsDeepResearchActive(true);
-                              }}
-                            >
-                              Commercial contracts
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                setSelectedVaultProject('Clinton emails');
-                                setSelectedSources(prev => {
-                                  const filtered = prev.filter(s => !s.startsWith('Vault:') && s !== 'Vault');
-                                  return [...filtered, 'Vault: Clinton emails'];
-                                });
-                                setIsDeepResearchActive(true);
-                              }}
-                            >
-                              Clinton emails
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                setSelectedVaultProject('Post office witnesses');
-                                setSelectedSources(prev => {
-                                  const filtered = prev.filter(s => !s.startsWith('Vault:') && s !== 'Vault');
-                                  return [...filtered, 'Vault: Post office witnesses'];
-                                });
-                                setIsDeepResearchActive(true);
-                              }}
-                            >
-                              Post office witnesses
-                            </DropdownMenuItem>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <button 
+                      onClick={() => setIsDeepResearchActive(!isDeepResearchActive)}
+                      className={`flex items-center gap-1.5 h-8 px-2 transition-colors ${
+                        isDeepResearchActive 
+                          ? 'text-[#5F3BA5] bg-[#E7E6EA]' 
+                          : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200'
+                      }`}
+                      style={{ borderRadius: '6px' }}
+                    >
+                      <Orbit size={16} />
+                      <span className="text-sm font-normal">Deep Research</span>
+                    </button>
                     
                     {/* Ask Harvey Button */}
                     <button

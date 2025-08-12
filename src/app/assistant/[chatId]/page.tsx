@@ -9,12 +9,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { UserPlus, Download, ArrowLeft, X, Plus, ListPlus, Settings2, Wand, Copy, SquarePen, RotateCcw, ThumbsUp, ThumbsDown, Upload, Globe, Folder, Flag } from "lucide-react";
+import { UserPlus, Download, ArrowLeft, X, Plus, ListPlus, Settings2, Wand, Copy, SquarePen, RotateCcw, ThumbsUp, ThumbsDown, Upload, Globe, Folder, Monitor, Orbit } from "lucide-react";
 import SourcesDrawer from "@/components/sources-drawer";
 import ShareThreadDialog from "@/components/share-thread-dialog";
 import ShareArtifactDialog from "@/components/share-artifact-dialog";
@@ -33,6 +30,8 @@ import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
 import FileManagementDialog from "@/components/file-management-dialog";
 import DocumentSelectionTable from "@/components/document-selection-table";
+import { InfoPopover } from "@/components/info-popover";
+import { dropdownItemsInfo, getIncompatibilityMessage } from "@/lib/dropdown-content";
 import LeaseProvisionsTable from "@/components/lease-provisions-table";
 import SubleasingProvisionsTable from "@/components/subleasing-provisions-table";
 
@@ -102,6 +101,9 @@ export default function AssistantChatPage({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
+  const [isDeepResearchActive, setIsDeepResearchActive] = useState(false);
+  const [selectedSources, setSelectedSources] = useState<string[]>(['Web']);
+  const [selectedVaultProject, setSelectedVaultProject] = useState<string | null>(null);
   const [chatWidth, setChatWidth] = useState(401);
   const [isResizing, setIsResizing] = useState(false);
   const [isHoveringResizer, setIsHoveringResizer] = useState(false);
@@ -1182,7 +1184,36 @@ export default function AssistantChatPage({
           >
             <div className="mx-auto" style={{ maxWidth: '832px' }}>
               <div className="pl-2 pr-3 pt-4 pb-3 transition-all duration-200 border border-transparent focus-within:border-neutral-300 bg-neutral-100 flex flex-col" style={{ borderRadius: '12px', minHeight: '160px' }}>
-              {/* Textarea */}
+              
+                {/* Source Chips - Show when Deep Research is active */}
+                {isDeepResearchActive && selectedSources.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {selectedSources.map((source) => (
+                      <div
+                        key={source}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-white text-[#5F3BA5] rounded-full text-sm font-medium border border-[#E7E6EA]"
+                      >
+                        <span>{source}</span>
+                        <button
+                          onClick={() => {
+                            const newSources = selectedSources.filter(s => s !== source);
+                            setSelectedSources(newSources);
+                            if (source.startsWith('Vault:')) {
+                              setSelectedVaultProject(null);
+                            }
+                            if (newSources.length === 0) {
+                              setIsDeepResearchActive(false);
+                            }
+                          }}
+                          className="ml-1 hover:bg-[#5F3BA5] hover:text-white rounded-full p-0.5 transition-colors"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Textarea */}
               <textarea
                 value={inputValue}
                 onChange={(e) => {
@@ -1220,42 +1251,123 @@ export default function AssistantChatPage({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-[240px]">
-                        <DropdownMenuItem onClick={() => setIsFileManagementOpen(true)}>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload files
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
-                          Add from SharePoint
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
-                          Add from iManage
-                        </DropdownMenuItem>
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['upload-files'].title}
+                          description={dropdownItemsInfo['upload-files'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem onClick={() => setIsFileManagementOpen(true)} className="cursor-pointer">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload files
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['sharepoint'].title}
+                          description={dropdownItemsInfo['sharepoint'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Monitor className="mr-2 h-4 w-4" />
+                            Upload from SharePoint
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['imanage'].title}
+                          description={dropdownItemsInfo['imanage'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
+                            Upload from iManage
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['imanage-deep-research'].title}
+                          description={dropdownItemsInfo['imanage-deep-research'].description}
+                          isIncompatible={!dropdownItemsInfo['imanage-deep-research'].isCompatibleWithoutDR && !isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['imanage-deep-research'])}
+                        >
+                          <DropdownMenuItem disabled={!isDeepResearchActive} className={!isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
+                            Search across iManage
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['vault'].title}
+                          description={dropdownItemsInfo['vault'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
                             <Folder className="mr-2 h-4 w-4" />
                             Add from Vault project
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuItem>Commercial contracts</DropdownMenuItem>
-                            <DropdownMenuItem>Clinton emails</DropdownMenuItem>
-                            <DropdownMenuItem>Post office witnesses</DropdownMenuItem>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
+                          </DropdownMenuItem>
+                        </InfoPopover>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Globe className="mr-2 h-4 w-4" />
-                          Web search
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Image src="/EDGAR.svg" width={16} height={16} className="mr-2" alt="" />
-                          EDGAR
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Flag className="mr-2 h-4 w-4" />
-                          EUR-Lex
-                        </DropdownMenuItem>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['web-search'].title}
+                          description={dropdownItemsInfo['web-search'].description}
+                          isIncompatible={false}
+                        >
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Globe className="mr-2 h-4 w-4" />
+                            Web search
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['edgar'].title}
+                          description={dropdownItemsInfo['edgar'].description}
+                          isIncompatible={!dropdownItemsInfo['edgar'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['edgar'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/EDGAR.svg" width={16} height={16} className="mr-2" alt="" />
+                            EDGAR
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['eur-lex'].title}
+                          description={dropdownItemsInfo['eur-lex'].description}
+                          isIncompatible={!dropdownItemsInfo['eur-lex'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['eur-lex'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/globe.svg" width={16} height={16} className="mr-2" alt="" />
+                            EUR-Lex
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['sweden'].title}
+                          description={dropdownItemsInfo['sweden'].description}
+                          isIncompatible={!dropdownItemsInfo['sweden'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['sweden'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <span className="mr-2">🇸🇪</span>
+                            Sweden
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['singapore'].title}
+                          description={dropdownItemsInfo['singapore'].description}
+                          isIncompatible={!dropdownItemsInfo['singapore'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['singapore'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <span className="mr-2">🇸🇬</span>
+                            Singapore
+                          </DropdownMenuItem>
+                        </InfoPopover>
+                        <InfoPopover 
+                          title={dropdownItemsInfo['lexisnexis'].title}
+                          description={dropdownItemsInfo['lexisnexis'].description}
+                          isIncompatible={!dropdownItemsInfo['lexisnexis'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['lexisnexis'])}
+                        >
+                          <DropdownMenuItem disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
+                            <Image src="/lexis.svg" width={16} height={16} className="mr-2" alt="" />
+                            LexisNexis
+                          </DropdownMenuItem>
+                        </InfoPopover>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   
@@ -1283,6 +1395,20 @@ export default function AssistantChatPage({
                 
                 {/* Right Controls */}
                 <div className="flex items-center space-x-2">
+                  {/* Deep Research */}
+                  <button 
+                    onClick={() => setIsDeepResearchActive(!isDeepResearchActive)}
+                    className={`flex items-center gap-1.5 h-8 px-2 transition-colors ${
+                      isDeepResearchActive 
+                        ? 'text-[#5F3BA5] bg-[#E7E6EA]' 
+                        : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200'
+                    }`}
+                    style={{ borderRadius: '6px' }}
+                  >
+                    <Orbit size={16} />
+                    <span className="text-sm font-normal">Deep Research</span>
+                  </button>
+                  
                   {/* Send Button */}
                   <button
                     onClick={sendMessage}
