@@ -9,19 +9,19 @@ export const dropdownItemsInfo: Record<string, DropdownItemInfo> = {
   'upload-files': {
     title: 'Upload Files',
     description: 'Select individual files to upload to Harvey.\n\n**Accepted file types:** PDF, Word, Text, Excel\n**Maximum file size:** 100MB\n**File limit:** Up to 50 files',
-    isCompatibleWithDR: true,
+    isCompatibleWithDR: false,
     isCompatibleWithoutDR: true
   },
   'sharepoint': {
     title: 'Upload from SharePoint',
     description: 'Select individual files from your SharePoint document library to upload to Harvey.\n\n**Accepted file types:** PDF, Word, Text, Excel\n**Maximum file size:** 100MB\n**File limit:** Up to 50 files',
-    isCompatibleWithDR: true,
+    isCompatibleWithDR: false,
     isCompatibleWithoutDR: true
   },
   'imanage': {
     title: 'Upload from iManage',
     description: 'Select individual files from your iManage document management system to upload to Harvey.\n\n**Accepted file types:** PDF, Word, Text, Excel\n**Maximum file size:** 100MB\n**File limit:** Up to 50 files',
-    isCompatibleWithDR: true,
+    isCompatibleWithDR: false,
     isCompatibleWithoutDR: true
   },
   'imanage-deep-research': {

@@ -71,31 +71,6 @@ export default function AssistantHomePage() {
   const handleSourceSelection = (sourceName: string, sourceId: string) => {
     const sourceKey = sourceId || sourceName;
     
-    // Handle file upload sources by adding dummy chips
-    if (['sharepoint', 'imanage'].includes(sourceId)) {
-      const fileType = sourceId === 'sharepoint' ? 'sharepoint' : 'imanage';
-      const fileName = `example_document.pdf`;
-      
-      // Add a dummy file chip
-      setFileChips(prev => {
-        const exists = prev.some(chip => chip.type === fileType);
-        if (exists) return prev;
-        return [...prev, { name: fileName, type: fileType }];
-      });
-      return; // Don't add to regular sources
-    }
-    
-    // Handle regular file upload
-    if (sourceId === 'upload-files') {
-      const fileName = `uploaded_file.pdf`;
-      setFileChips(prev => {
-        const exists = prev.some(chip => chip.type === 'browser');
-        if (exists) return prev;
-        return [...prev, { name: fileName, type: 'browser' }];
-      });
-      return; // Don't add to regular sources
-    }
-    
     if (isDeepResearchActive) {
       // Deep Research mode: Allow multiple compatible sources
       const sourceInfo = dropdownItemsInfo[sourceId];
@@ -393,11 +368,12 @@ export default function AssistantHomePage() {
                         <InfoPopover 
                           title={dropdownItemsInfo['upload-files'].title}
                           description={dropdownItemsInfo['upload-files'].description}
-                          isIncompatible={false}
+                          isIncompatible={!dropdownItemsInfo['upload-files'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['upload-files'])}
                         >
                           <DropdownMenuItem onClick={() => {
                             handleSourceSelection('Files', 'upload-files');
-                          }} className="cursor-pointer">
+                          }} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Upload className="mr-2 h-4 w-4" />
                             Upload files
                           </DropdownMenuItem>
@@ -405,9 +381,10 @@ export default function AssistantHomePage() {
                         <InfoPopover 
                           title={dropdownItemsInfo['sharepoint'].title}
                           description={dropdownItemsInfo['sharepoint'].description}
-                          isIncompatible={false}
+                          isIncompatible={!dropdownItemsInfo['sharepoint'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['sharepoint'])}
                         >
-                          <DropdownMenuItem onClick={() => handleSourceSelection('SharePoint files', 'sharepoint')} className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => handleSourceSelection('SharePoint files', 'sharepoint')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Monitor className="mr-2 h-4 w-4" />
                             Upload from SharePoint
                           </DropdownMenuItem>
@@ -415,9 +392,10 @@ export default function AssistantHomePage() {
                         <InfoPopover 
                           title={dropdownItemsInfo['imanage'].title}
                           description={dropdownItemsInfo['imanage'].description}
-                          isIncompatible={false}
+                          isIncompatible={!dropdownItemsInfo['imanage'].isCompatibleWithDR && isDeepResearchActive}
+                          incompatibilityMessage={getIncompatibilityMessage(isDeepResearchActive, dropdownItemsInfo['imanage'])}
                         >
-                          <DropdownMenuItem onClick={() => handleSourceSelection('iManage files', 'imanage')} className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => handleSourceSelection('iManage files', 'imanage')} disabled={isDeepResearchActive} className={isDeepResearchActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}>
                             <Image src="/imanage.svg" width={16} height={16} className="mr-2" alt="" />
                             Upload from iManage
                           </DropdownMenuItem>
