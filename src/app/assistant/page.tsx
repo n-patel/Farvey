@@ -41,8 +41,12 @@ export default function AssistantHomePage() {
   const [activeWorkflowTab, setActiveWorkflowTab] = useState("recommended");
   const [workflowSearchQuery, setWorkflowSearchQuery] = useState("");
   const [isFileManagementOpen, setIsFileManagementOpen] = useState(false);
-  const [isConfirmationPopoverOpen, setIsConfirmationPopoverOpen] = useState(false);
-  const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    isOpen: boolean;
+    message: string;
+    targetDRState: boolean;
+    incompatibleSources: string[];
+  } | null>(null);
 
   const handleSendMessage = () => {
     if (inputValue.trim() && !isLoading) {
@@ -63,16 +67,6 @@ export default function AssistantHomePage() {
     }
   };
 
-  const getIncompatibleSources = (willBeDeepResearch: boolean) => {
-    return selectedSources.filter(source => {
-      // The source is already the sourceId, so just check directly
-      if (dropdownItemsInfo[source]) {
-        const sourceInfo = dropdownItemsInfo[source];
-        return willBeDeepResearch ? !sourceInfo.isCompatibleWithDR : !sourceInfo.isCompatibleWithoutDR;
-      }
-      return false; // Keep sources we can't identify
-    });
-  };
 
   const handleSourceSelection = (sourceName: string, sourceId: string) => {
     const sourceKey = sourceId || sourceName;
@@ -138,64 +132,75 @@ export default function AssistantHomePage() {
   };
 
   const handleDeepResearchToggle = () => {
-    const newDRState = !isDeepResearchActive;
-    console.log('DEBUG handleDeepResearchToggle: isDeepResearchActive =', isDeepResearchActive);
-    console.log('DEBUG handleDeepResearchToggle: newDRState =', newDRState);
+    const targetDRState = !isDeepResearchActive;
+    console.log('DEBUG handleDeepResearchToggle: current =', isDeepResearchActive, 'target =', targetDRState);
     console.log('DEBUG handleDeepResearchToggle: selectedSources =', selectedSources);
     
-    const incompatibleSources = getIncompatibleSources(newDRState);
+    // Find incompatible sources for the target state
+    const incompatibleSources = selectedSources.filter(source => {
+      if (dropdownItemsInfo[source]) {
+        const sourceInfo = dropdownItemsInfo[source];
+        return targetDRState ? !sourceInfo.isCompatibleWithDR : !sourceInfo.isCompatibleWithoutDR;
+      }
+      return false;
+    });
+    
     console.log('DEBUG handleDeepResearchToggle: incompatibleSources =', incompatibleSources);
     
     if (incompatibleSources.length > 0) {
-      // Show confirmation popover - convert source IDs to display names
+      // Build confirmation dialog
       const sourceDisplayNames = incompatibleSources.map(sourceId => {
-        if (dropdownItemsInfo[sourceId]) {
-          return dropdownItemsInfo[sourceId].title;
-        }
-        return sourceId; // fallback to ID if no title found
+        return dropdownItemsInfo[sourceId]?.title || sourceId;
       });
       
       const sourceList = sourceDisplayNames.join(', ');
-      const message = newDRState 
-        ? `${sourceList} ${incompatibleSources.length === 1 ? 'is' : 'are'} incompatible with Deep Research. Would you like to remove ${incompatibleSources.length === 1 ? 'it' : 'them'} in order to enable Deep Research?`
-        : `${sourceList} ${incompatibleSources.length === 1 ? 'is' : 'are'} only available in Deep Research. Would you like to remove ${incompatibleSources.length === 1 ? 'it' : 'them'} in order to disable Deep Research?`;
+      const action = targetDRState ? 'enable' : 'disable';
+      const compatibility = targetDRState ? 'incompatible with' : 'only available with';
+      const message = `${sourceList} ${incompatibleSources.length === 1 ? 'is' : 'are'} ${compatibility} Deep Research. Would you like to remove ${incompatibleSources.length === 1 ? 'it' : 'them'} to ${action} Deep Research?`;
       
-      setConfirmationMessage(message);
-      setIsConfirmationPopoverOpen(true);
+      setConfirmationDialog({
+        isOpen: true,
+        message,
+        targetDRState,
+        incompatibleSources
+      });
       return;
     }
     
-    // No incompatibilities, proceed with toggle
-    setIsDeepResearchActive(newDRState);
+    // No incompatibilities, proceed directly
+    console.log('DEBUG handleDeepResearchToggle: No conflicts, proceeding directly');
+    setIsDeepResearchActive(targetDRState);
   };
 
   const handleConfirmToggle = () => {
-    const newDRState = !isDeepResearchActive;
+    if (!confirmationDialog) {
+      console.error('DEBUG handleConfirmToggle: No confirmation dialog found');
+      return;
+    }
     
-    console.log('DEBUG handleConfirmToggle: selectedSources before =', selectedSources);
-    console.log('DEBUG handleConfirmToggle: newDRState =', newDRState);
+    const { targetDRState, incompatibleSources } = confirmationDialog;
+    console.log('DEBUG handleConfirmToggle: targetDRState =', targetDRState);
+    console.log('DEBUG handleConfirmToggle: removing sources =', incompatibleSources);
     
-    // Remove incompatible sources first
-    const compatibleSources = selectedSources.filter(source => {
-      if (dropdownItemsInfo[source]) {
-        const sourceInfo = dropdownItemsInfo[source];
-        const isCompatible = newDRState ? sourceInfo.isCompatibleWithDR : sourceInfo.isCompatibleWithoutDR;
-        console.log(`DEBUG handleConfirmToggle: ${source} - isCompatibleWithDR: ${sourceInfo.isCompatibleWithDR}, isCompatibleWithoutDR: ${sourceInfo.isCompatibleWithoutDR}, newDRState: ${newDRState}, keeping: ${isCompatible}`);
-        return isCompatible;
-      }
-      return true; // Keep sources we can't identify
+    // Remove the incompatible sources
+    const newSelectedSources = selectedSources.filter(source => !incompatibleSources.includes(source));
+    const updatedSourceIds = { ...sourceIds };
+    incompatibleSources.forEach(source => {
+      delete updatedSourceIds[source];
     });
     
-    console.log('DEBUG handleConfirmToggle: selectedSources after =', compatibleSources);
+    console.log('DEBUG handleConfirmToggle: newSelectedSources =', newSelectedSources);
     
-    // Update both states together
-    setSelectedSources(compatibleSources);
-    setIsDeepResearchActive(newDRState);
-    setIsConfirmationPopoverOpen(false);
+    // Update all states atomically
+    setSelectedSources(newSelectedSources);
+    setSourceIds(updatedSourceIds);
+    setIsDeepResearchActive(targetDRState);
+    setConfirmationDialog(null); // Close dialog
   };
 
   const handleCancelToggle = () => {
-    setIsConfirmationPopoverOpen(false);
+    console.log('DEBUG handleCancelToggle: Canceling DR toggle');
+    setConfirmationDialog(null); // Just close dialog, no state changes
   };
 
   // Streaming icon component
@@ -532,7 +537,9 @@ export default function AssistantHomePage() {
                   {/* Right Controls */}
                   <div className="flex items-center space-x-1">
                     {/* Deep Research with Confirmation Popover */}
-                    <Popover open={isConfirmationPopoverOpen} onOpenChange={setIsConfirmationPopoverOpen}>
+                    <Popover open={confirmationDialog?.isOpen || false} onOpenChange={(open) => {
+                      if (!open) setConfirmationDialog(null);
+                    }}>
                       <PopoverTrigger asChild>
                         <button 
                           onClick={handleDeepResearchToggle}
@@ -549,7 +556,7 @@ export default function AssistantHomePage() {
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-4" align="end">
                         <div className="space-y-3">
-                          <p className="text-sm text-neutral-900">{confirmationMessage}</p>
+                          <p className="text-sm text-neutral-900">{confirmationDialog?.message || ""}</p>
                           <div className="flex gap-2 justify-end">
                             <Button
                               variant="outline"
